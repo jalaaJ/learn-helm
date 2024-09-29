@@ -1,0 +1,35 @@
+name: Minikube and Helm Deploy
+
+on: workflow_call
+
+jobs:
+  minikube-helm-deploy:
+    runs-on: ubuntu-latest
+
+    env:
+      IMAGE_NAME: jalaaj95/python-flask-project
+      IMAGE_TAG: flask-app
+
+    steps:
+    - name: Set up Minikube
+      run: |
+        curl -Lo minikube https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+        chmod +x minikube
+        sudo mv minikube /usr/local/bin/
+        minikube start --driver=docker
+        kubectl config use-context minikube
+      env:
+        CHANGE_MINIKUBE_NONE_USER: true
+
+    - name: Install Helm
+      run: |
+        curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+        helm version
+
+    - name: Deploy to Minikube using Helm
+      run: |
+        helm upgrade --install python-project ./python-project \
+        --set image.repository=${{ env.IMAGE_NAME }} \
+        --set image.tag=${{ env.IMAGE_TAG }} \
+        --set service.type=NodePort \
+        --set service.port=9001

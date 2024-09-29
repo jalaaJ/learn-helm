@@ -9,64 +9,17 @@ on:
       - main
 
 jobs:
-  build-and-deploy:
-    runs-on: ubuntu-latest
+  run-checkout-and-setup:
+    uses: ./.github/workflows/checkout-and-setup.yml
 
-    env:
-      IMAGE_NAME: jalaaj95/python-flask-project
-      IMAGE_TAG: flask-app
+  run-tests:
+    needs: run-checkout-and-setup
+    uses: ./.github/workflows/run-tests.yml
 
-    steps:
-    - name: Checkout the repository
-      uses: actions/checkout@v2
+  docker-build-and-push:
+    needs: run-tests
+    uses: ./.github/workflows/docker-build-and-push.yml
 
-    - name: Set up Python
-      uses: actions/setup-python@v2
-      with:
-        python-version: '3.x'
-
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-
-    - name: Run Unit Tests
-      run: |
-        python -m unittest discover -s . -p "test_*.py"
-      
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v2
-
-    - name: Login to DockerHub
-      uses: docker/login-action@v2
-      with:
-        username: ${{ secrets.DOCKER_USERNAME }}
-        password: ${{ secrets.DOCKER_PASSWORD }}
-
-    - name: Build and Push Docker Image
-      run: |
-        docker build -t ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} .
-        docker push ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
-
-    - name: Set up Minikube
-      run: |
-        curl -Lo minikube https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
-        chmod +x minikube
-        sudo mv minikube /usr/local/bin/
-        minikube start --driver=docker
-        kubectl config use-context minikube
-      env:
-        CHANGE_MINIKUBE_NONE_USER: true
-
-    - name: Install Helm
-      run: |
-        curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
-        helm version
-
-    - name: Deploy to Minikube using Helm
-      run: |
-        helm upgrade --install python-project ./python-project \
-        --set image.repository=${{ env.IMAGE_NAME }} \
-        --set image.tag=${{ env.IMAGE_TAG }} \
-        --set service.type=NodePort \
-        --set service.port=9001
+  minikube-helm-deploy:
+    needs: docker-build-and-push
+    uses: ./.github/workflows/minikube-helm-deploy.yml
