@@ -21,6 +21,7 @@ jobs:
         password: ${{ secrets.DOCKER_PASSWORD }}
         registry: docker.io
         ecr: false
+        logout: false
 
     - name: Build and Push Docker Image
       run: |
